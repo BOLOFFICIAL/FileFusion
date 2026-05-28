@@ -9,6 +9,51 @@ namespace FileFusion
         public MainForm()
         {
             InitializeComponent();
+            ConfigureUi();
+        }
+
+        private void ConfigureUi()
+        {
+            BackColor = Color.FromArgb(30, 30, 30);
+
+            ForeColor = Color.White;
+
+            content.BackColor = Color.FromArgb(37, 37, 38);
+            content.ForeColor = Color.White;
+            content.Font = new Font("Consolas", 10);
+
+            extensions.BackColor = Color.FromArgb(45, 45, 48);
+            extensions.ForeColor = Color.White;
+
+            files.BackColor = Color.FromArgb(45, 45, 48);
+            files.ForeColor = Color.White;
+
+            foreach (Control control in Controls)
+            {
+                ApplyDarkTheme(control);
+            }
+        }
+
+        private void ApplyDarkTheme(Control parent)
+        {
+            foreach (Control control in parent.Controls)
+            {
+                if (control is Button button)
+                {
+                    button.BackColor = Color.FromArgb(0, 122, 204);
+                    button.ForeColor = Color.White;
+                    button.FlatStyle = FlatStyle.Flat;
+                    button.FlatAppearance.BorderSize = 0;
+                    button.Cursor = Cursors.Hand;
+                }
+
+                if (control is GroupBox groupBox)
+                {
+                    groupBox.ForeColor = Color.White;
+                }
+
+                ApplyDarkTheme(control);
+            }
         }
 
         private void selectFolder_Click(object sender, EventArgs e)
@@ -37,6 +82,13 @@ namespace FileFusion
 
             extensions.ItemCheck -= extensions_ItemCheck;
 
+            var isCheck = allExtensions.Checked;
+
+            if (!isCheck) 
+            {
+                allFiles.Checked = isCheck;
+            }
+
             for (int i = 0; i < extensions.Items.Count; i++)
             {
                 if (i == extensions.Items.Count - 1)
@@ -44,7 +96,7 @@ namespace FileFusion
                     extensions.ItemCheck += extensions_ItemCheck;
                 }
 
-                extensions.SetItemChecked(i, allExtensions.Checked);
+                extensions.SetItemChecked(i, isCheck);
             }
         }
 
@@ -64,6 +116,8 @@ namespace FileFusion
                         }
                     }
                 }
+
+                allFiles.Checked = false;
             }));
         }
 
@@ -88,13 +142,13 @@ namespace FileFusion
             {
                 content.Text = "";
                 var errorList = new List<string>();
-                var text = new StringBuilder();
+                var builder = new StringBuilder();
 
                 foreach (string file in files.CheckedItems)
                 {
                     var fileContent = GetFileContent(file);
 
-                    if (text.Length + fileContent.Length > text.MaxCapacity)
+                    if (builder.Length + fileContent.Length > builder.MaxCapacity)
                     {
                         MessageBox.Show($"Место закончилось");
                         return;
@@ -107,9 +161,11 @@ namespace FileFusion
 
                     if (fileContent.Length > 0)
                     {
-                        text.AppendLine($"//Начало файла: {file}\n");
-                        text.AppendLine(fileContent);
-                        text.AppendLine($"\n//Конец файла: {file}\n");
+                        builder.AppendLine($"// ========================================");
+                        builder.AppendLine($"// FILE: {file}");
+                        builder.AppendLine($"// ========================================");
+                        builder.AppendLine(fileContent);
+                        builder.AppendLine($"\n//Конец файла: {file}\n");
                     }
                 }
 
@@ -118,18 +174,18 @@ namespace FileFusion
                     MessageBox.Show($"Не удалось получить содержимое следующих файлов:\n{string.Join("\n", errorList)}");
                 }
 
-                if (text.Length > content.MaxLength)
+                if (builder.Length > content.MaxLength)
                 {
                     if (MessageBox.Show("Данных слишком много, сохранить их сразу в фаил?",
                         "",
                         MessageBoxButtons.YesNo,
                         MessageBoxIcon.Question) == DialogResult.Yes)
                     {
-                        SaveDataToFile(text.ToString());
+                        SaveDataToFile(builder.ToString());
                         return;
                     }
                 }
-                content.Text = text.ToString();
+                content.Text = builder.ToString();
             }));
         }
 

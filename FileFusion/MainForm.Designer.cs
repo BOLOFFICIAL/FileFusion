@@ -79,8 +79,8 @@
             tableLayoutPanel2.Name = "tableLayoutPanel2";
             tableLayoutPanel2.RowCount = 4;
             tableLayoutPanel2.RowStyles.Add(new RowStyle());
-            tableLayoutPanel2.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
-            tableLayoutPanel2.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
+            tableLayoutPanel2.RowStyles.Add(new RowStyle(SizeType.Percent, 39.9976F));
+            tableLayoutPanel2.RowStyles.Add(new RowStyle(SizeType.Percent, 60.0024F));
             tableLayoutPanel2.RowStyles.Add(new RowStyle());
             tableLayoutPanel2.Size = new Size(300, 450);
             tableLayoutPanel2.TabIndex = 0;
@@ -89,10 +89,10 @@
             // 
             groupBox2.Controls.Add(tableLayoutPanel4);
             groupBox2.Dock = DockStyle.Fill;
-            groupBox2.Location = new Point(3, 225);
+            groupBox2.Location = new Point(3, 183);
             groupBox2.Margin = new Padding(3, 0, 3, 0);
             groupBox2.Name = "groupBox2";
-            groupBox2.Size = new Size(294, 194);
+            groupBox2.Size = new Size(294, 228);
             groupBox2.TabIndex = 3;
             groupBox2.TabStop = false;
             groupBox2.Text = "Файлы";
@@ -109,14 +109,14 @@
             tableLayoutPanel4.RowCount = 2;
             tableLayoutPanel4.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             tableLayoutPanel4.RowStyles.Add(new RowStyle());
-            tableLayoutPanel4.Size = new Size(288, 172);
+            tableLayoutPanel4.Size = new Size(288, 206);
             tableLayoutPanel4.TabIndex = 1;
             // 
             // allFiles
             // 
             allFiles.AutoSize = true;
             allFiles.Dock = DockStyle.Fill;
-            allFiles.Location = new Point(3, 150);
+            allFiles.Location = new Point(3, 184);
             allFiles.Name = "allFiles";
             allFiles.Size = new Size(282, 19);
             allFiles.TabIndex = 0;
@@ -132,7 +132,7 @@
             files.Location = new Point(0, 0);
             files.Margin = new Padding(0);
             files.Name = "files";
-            files.Size = new Size(288, 147);
+            files.Size = new Size(288, 181);
             files.TabIndex = 1;
             files.ItemCheck += files_ItemCheck;
             // 
@@ -143,7 +143,7 @@
             groupBox1.Location = new Point(3, 31);
             groupBox1.Margin = new Padding(3, 0, 3, 0);
             groupBox1.Name = "groupBox1";
-            groupBox1.Size = new Size(294, 194);
+            groupBox1.Size = new Size(294, 152);
             groupBox1.TabIndex = 2;
             groupBox1.TabStop = false;
             groupBox1.Text = "Расширения";
@@ -160,14 +160,14 @@
             tableLayoutPanel3.RowCount = 2;
             tableLayoutPanel3.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             tableLayoutPanel3.RowStyles.Add(new RowStyle());
-            tableLayoutPanel3.Size = new Size(288, 172);
+            tableLayoutPanel3.Size = new Size(288, 130);
             tableLayoutPanel3.TabIndex = 0;
             // 
             // allExtensions
             // 
             allExtensions.AutoSize = true;
             allExtensions.Dock = DockStyle.Fill;
-            allExtensions.Location = new Point(3, 150);
+            allExtensions.Location = new Point(3, 108);
             allExtensions.Name = "allExtensions";
             allExtensions.Size = new Size(282, 19);
             allExtensions.TabIndex = 0;
@@ -182,7 +182,7 @@
             extensions.Location = new Point(0, 0);
             extensions.Margin = new Padding(0);
             extensions.Name = "extensions";
-            extensions.Size = new Size(288, 147);
+            extensions.Size = new Size(288, 105);
             extensions.TabIndex = 1;
             extensions.ItemCheck += extensions_ItemCheck;
             // 
@@ -202,9 +202,9 @@
             // 
             saveToFile.AutoSize = true;
             saveToFile.Dock = DockStyle.Fill;
-            saveToFile.Location = new Point(3, 422);
+            saveToFile.Location = new Point(3, 414);
             saveToFile.Name = "saveToFile";
-            saveToFile.Size = new Size(294, 25);
+            saveToFile.Size = new Size(294, 33);
             saveToFile.TabIndex = 5;
             saveToFile.Text = "Сохранить в фаил";
             saveToFile.UseVisualStyleBackColor = true;
