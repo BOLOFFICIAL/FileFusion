@@ -118,6 +118,7 @@ namespace FileFusion
                 }
 
                 allFiles.Checked = false;
+                content.Text = "";
             }));
         }
 
