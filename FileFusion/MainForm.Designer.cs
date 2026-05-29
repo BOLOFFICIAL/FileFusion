@@ -1,4 +1,6 @@
-﻿namespace FileFusion
+﻿using System.Windows.Forms;
+
+namespace FileFusion
 {
     partial class MainForm
     {
@@ -29,12 +31,12 @@
         private void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
-            tableLayoutPanel1 = new TableLayoutPanel();
+            splitContainer = new SplitContainer();
             tableLayoutPanel2 = new TableLayoutPanel();
             groupBox2 = new GroupBox();
             tableLayoutPanel4 = new TableLayoutPanel();
             allFiles = new CheckBox();
-            files = new CheckedListBox();
+            filesTreeView = new TreeView();
             groupBox1 = new GroupBox();
             tableLayoutPanel3 = new TableLayoutPanel();
             allExtensions = new CheckBox();
@@ -42,7 +44,10 @@
             selectFolder = new Button();
             saveToFile = new Button();
             content = new RichTextBox();
-            tableLayoutPanel1.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)splitContainer).BeginInit();
+            splitContainer.Panel1.SuspendLayout();
+            splitContainer.Panel2.SuspendLayout();
+            splitContainer.SuspendLayout();
             tableLayoutPanel2.SuspendLayout();
             groupBox2.SuspendLayout();
             tableLayoutPanel4.SuspendLayout();
@@ -50,20 +55,25 @@
             tableLayoutPanel3.SuspendLayout();
             SuspendLayout();
             // 
-            // tableLayoutPanel1
+            // splitContainer
             // 
-            tableLayoutPanel1.ColumnCount = 2;
-            tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 300F));
-            tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            tableLayoutPanel1.Controls.Add(tableLayoutPanel2, 0, 0);
-            tableLayoutPanel1.Controls.Add(content, 1, 0);
-            tableLayoutPanel1.Dock = DockStyle.Fill;
-            tableLayoutPanel1.Location = new Point(0, 0);
-            tableLayoutPanel1.Name = "tableLayoutPanel1";
-            tableLayoutPanel1.RowCount = 1;
-            tableLayoutPanel1.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-            tableLayoutPanel1.Size = new Size(800, 450);
-            tableLayoutPanel1.TabIndex = 0;
+            splitContainer.Dock = DockStyle.Fill;
+            splitContainer.Location = new Point(0, 0);
+            splitContainer.Name = "splitContainer";
+            // 
+            // splitContainer.Panel1
+            // 
+            splitContainer.Panel1.Controls.Add(tableLayoutPanel2);
+            splitContainer.Panel1MinSize = 200;
+            // 
+            // splitContainer.Panel2
+            // 
+            splitContainer.Panel2.Controls.Add(content);
+            splitContainer.Panel2MinSize = 200;
+            splitContainer.Size = new Size(800, 450);
+            splitContainer.SplitterDistance = 300;
+            splitContainer.SplitterWidth = 5;
+            splitContainer.TabIndex = 0;
             // 
             // tableLayoutPanel2
             // 
@@ -77,6 +87,7 @@
             tableLayoutPanel2.Location = new Point(0, 0);
             tableLayoutPanel2.Margin = new Padding(0);
             tableLayoutPanel2.Name = "tableLayoutPanel2";
+            tableLayoutPanel2.Padding = new Padding(5, 3, 0, 3);
             tableLayoutPanel2.RowCount = 4;
             tableLayoutPanel2.RowStyles.Add(new RowStyle());
             tableLayoutPanel2.RowStyles.Add(new RowStyle(SizeType.Percent, 39.9976F));
@@ -89,10 +100,10 @@
             // 
             groupBox2.Controls.Add(tableLayoutPanel4);
             groupBox2.Dock = DockStyle.Fill;
-            groupBox2.Location = new Point(3, 184);
+            groupBox2.Location = new Point(8, 184);
             groupBox2.Margin = new Padding(3, 0, 3, 0);
             groupBox2.Name = "groupBox2";
-            groupBox2.Size = new Size(294, 229);
+            groupBox2.Size = new Size(289, 226);
             groupBox2.TabIndex = 3;
             groupBox2.TabStop = false;
             groupBox2.Text = "Файлы";
@@ -102,48 +113,47 @@
             tableLayoutPanel4.ColumnCount = 1;
             tableLayoutPanel4.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
             tableLayoutPanel4.Controls.Add(allFiles, 0, 1);
-            tableLayoutPanel4.Controls.Add(files, 0, 0);
+            tableLayoutPanel4.Controls.Add(filesTreeView, 0, 0);
             tableLayoutPanel4.Dock = DockStyle.Fill;
             tableLayoutPanel4.Location = new Point(3, 19);
             tableLayoutPanel4.Name = "tableLayoutPanel4";
             tableLayoutPanel4.RowCount = 2;
             tableLayoutPanel4.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             tableLayoutPanel4.RowStyles.Add(new RowStyle());
-            tableLayoutPanel4.Size = new Size(288, 207);
+            tableLayoutPanel4.Size = new Size(283, 204);
             tableLayoutPanel4.TabIndex = 1;
             // 
             // allFiles
             // 
             allFiles.AutoSize = true;
             allFiles.Dock = DockStyle.Fill;
-            allFiles.Location = new Point(3, 185);
+            allFiles.Location = new Point(3, 182);
             allFiles.Name = "allFiles";
-            allFiles.Size = new Size(282, 19);
+            allFiles.Size = new Size(277, 19);
             allFiles.TabIndex = 0;
             allFiles.Text = "Все";
             allFiles.UseVisualStyleBackColor = true;
             allFiles.CheckedChanged += allFiles_CheckedChanged;
             // 
-            // files
+            // filesTreeView
             // 
-            files.Dock = DockStyle.Fill;
-            files.FormattingEnabled = true;
-            files.HorizontalScrollbar = true;
-            files.Location = new Point(0, 0);
-            files.Margin = new Padding(0);
-            files.Name = "files";
-            files.Size = new Size(288, 182);
-            files.TabIndex = 1;
-            files.ItemCheck += files_ItemCheck;
+            filesTreeView.CheckBoxes = true;
+            filesTreeView.Dock = DockStyle.Fill;
+            filesTreeView.Location = new Point(0, 0);
+            filesTreeView.Margin = new Padding(0);
+            filesTreeView.Name = "filesTreeView";
+            filesTreeView.Size = new Size(283, 179);
+            filesTreeView.TabIndex = 1;
+            filesTreeView.AfterCheck += filesTreeView_AfterCheck;
             // 
             // groupBox1
             // 
             groupBox1.Controls.Add(tableLayoutPanel3);
             groupBox1.Dock = DockStyle.Fill;
-            groupBox1.Location = new Point(3, 31);
+            groupBox1.Location = new Point(8, 34);
             groupBox1.Margin = new Padding(3, 0, 3, 0);
             groupBox1.Name = "groupBox1";
-            groupBox1.Size = new Size(294, 153);
+            groupBox1.Size = new Size(289, 150);
             groupBox1.TabIndex = 2;
             groupBox1.TabStop = false;
             groupBox1.Text = "Расширения";
@@ -160,16 +170,16 @@
             tableLayoutPanel3.RowCount = 2;
             tableLayoutPanel3.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
             tableLayoutPanel3.RowStyles.Add(new RowStyle());
-            tableLayoutPanel3.Size = new Size(288, 131);
+            tableLayoutPanel3.Size = new Size(283, 128);
             tableLayoutPanel3.TabIndex = 0;
             // 
             // allExtensions
             // 
             allExtensions.AutoSize = true;
             allExtensions.Dock = DockStyle.Fill;
-            allExtensions.Location = new Point(3, 109);
+            allExtensions.Location = new Point(3, 106);
             allExtensions.Name = "allExtensions";
-            allExtensions.Size = new Size(282, 19);
+            allExtensions.Size = new Size(277, 19);
             allExtensions.TabIndex = 0;
             allExtensions.Text = "Все";
             allExtensions.UseVisualStyleBackColor = true;
@@ -182,7 +192,7 @@
             extensions.Location = new Point(0, 0);
             extensions.Margin = new Padding(0);
             extensions.Name = "extensions";
-            extensions.Size = new Size(288, 106);
+            extensions.Size = new Size(283, 103);
             extensions.TabIndex = 1;
             extensions.ItemCheck += extensions_ItemCheck;
             // 
@@ -190,9 +200,9 @@
             // 
             selectFolder.AutoSize = true;
             selectFolder.Dock = DockStyle.Fill;
-            selectFolder.Location = new Point(3, 3);
+            selectFolder.Location = new Point(8, 6);
             selectFolder.Name = "selectFolder";
-            selectFolder.Size = new Size(294, 25);
+            selectFolder.Size = new Size(289, 25);
             selectFolder.TabIndex = 4;
             selectFolder.Text = "Выбрать папку";
             selectFolder.UseVisualStyleBackColor = true;
@@ -202,11 +212,11 @@
             // 
             saveToFile.AutoSize = true;
             saveToFile.Dock = DockStyle.Fill;
-            saveToFile.Location = new Point(3, 416);
-            saveToFile.MaximumSize = new Size(294, 30);
-            saveToFile.MinimumSize = new Size(294, 30);
+            saveToFile.Location = new Point(8, 413);
+            saveToFile.MaximumSize = new Size(0, 30);
+            saveToFile.MinimumSize = new Size(0, 30);
             saveToFile.Name = "saveToFile";
-            saveToFile.Size = new Size(294, 30);
+            saveToFile.Size = new Size(289, 30);
             saveToFile.TabIndex = 5;
             saveToFile.Text = "Сохранить в фаил";
             saveToFile.UseVisualStyleBackColor = true;
@@ -215,10 +225,10 @@
             // content
             // 
             content.Dock = DockStyle.Fill;
-            content.Location = new Point(300, 3);
-            content.Margin = new Padding(0, 3, 3, 3);
+            content.Location = new Point(0, 0);
+            content.Margin = new Padding(0);
             content.Name = "content";
-            content.Size = new Size(497, 444);
+            content.Size = new Size(495, 450);
             content.TabIndex = 1;
             content.Text = "";
             // 
@@ -227,11 +237,14 @@
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 450);
-            Controls.Add(tableLayoutPanel1);
+            Controls.Add(splitContainer);
             Icon = (Icon)resources.GetObject("$this.Icon");
             Name = "MainForm";
             Text = "FileFusion";
-            tableLayoutPanel1.ResumeLayout(false);
+            splitContainer.Panel1.ResumeLayout(false);
+            splitContainer.Panel2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)splitContainer).EndInit();
+            splitContainer.ResumeLayout(false);
             tableLayoutPanel2.ResumeLayout(false);
             tableLayoutPanel2.PerformLayout();
             groupBox2.ResumeLayout(false);
@@ -245,14 +258,14 @@
 
         #endregion
 
-        private TableLayoutPanel tableLayoutPanel1;
+        private SplitContainer splitContainer;
         private TableLayoutPanel tableLayoutPanel2;
         private TableLayoutPanel tableLayoutPanel4;
         private TableLayoutPanel tableLayoutPanel3;
         private GroupBox groupBox1;
         private GroupBox groupBox2;
         private CheckBox allFiles;
-        private CheckedListBox files;
+        private TreeView filesTreeView;
         private CheckBox allExtensions;
         private CheckedListBox extensions;
         private Button selectFolder;

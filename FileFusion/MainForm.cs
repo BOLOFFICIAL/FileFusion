@@ -5,6 +5,8 @@ namespace FileFusion
     public partial class MainForm : Form
     {
         private Dictionary<string, List<string>> _contextFiles;
+        private Dictionary<string, TreeNode> _extensionNodes = new Dictionary<string, TreeNode>();
+        private bool _updatingTree = false;
 
         public MainForm()
         {
@@ -15,7 +17,6 @@ namespace FileFusion
         private void ConfigureUi()
         {
             BackColor = Color.FromArgb(30, 30, 30);
-
             ForeColor = Color.White;
 
             content.BackColor = Color.FromArgb(37, 37, 38);
@@ -25,8 +26,8 @@ namespace FileFusion
             extensions.BackColor = Color.FromArgb(45, 45, 48);
             extensions.ForeColor = Color.White;
 
-            files.BackColor = Color.FromArgb(45, 45, 48);
-            files.ForeColor = Color.White;
+            filesTreeView.BackColor = Color.FromArgb(45, 45, 48);
+            filesTreeView.ForeColor = Color.White;
 
             foreach (Control control in Controls)
             {
@@ -60,7 +61,7 @@ namespace FileFusion
         {
             using (var folderDialog = new FolderBrowserDialog())
             {
-                folderDialog.Description = "Выберите папку";
+                folderDialog.Description = "Выберите папку с файлами";
                 folderDialog.ShowNewFolderButton = true;
                 folderDialog.RootFolder = Environment.SpecialFolder.MyComputer;
 
@@ -79,12 +80,11 @@ namespace FileFusion
         private void allExtensions_CheckedChanged(object sender, EventArgs e)
         {
             content.Text = "";
-
             extensions.ItemCheck -= extensions_ItemCheck;
 
             var isCheck = allExtensions.Checked;
 
-            if (!isCheck) 
+            if (!isCheck)
             {
                 allFiles.Checked = isCheck;
             }
@@ -104,90 +104,201 @@ namespace FileFusion
         {
             this.BeginInvoke(new Action(() =>
             {
-                files.Items.Clear();
-
-                foreach (string ex in extensions.CheckedItems)
-                {
-                    if (_contextFiles.ContainsKey(ex))
-                    {
-                        foreach (string el in _contextFiles[ex])
-                        {
-                            files.Items.Add(el);
-                        }
-                    }
-                }
-
+                UpdateTreeView();
                 allFiles.Checked = false;
                 content.Text = "";
             }));
         }
 
-        private void allFiles_CheckedChanged(object sender, EventArgs e)
+        private void UpdateTreeView()
         {
-            files.ItemCheck -= files_ItemCheck;
+            _updatingTree = true;
+            filesTreeView.Nodes.Clear();
+            _extensionNodes.Clear();
 
-            for (int i = 0; i < files.Items.Count; i++)
+            foreach (string ex in extensions.CheckedItems)
             {
-                if (i == files.Items.Count - 1)
+                if (_contextFiles.ContainsKey(ex))
                 {
-                    files.ItemCheck += files_ItemCheck;
-                }
+                    var extensionNode = new TreeNode(ex.TrimStart('.'));
+                    extensionNode.Tag = ex;
+                    _extensionNodes[ex] = extensionNode;
 
-                files.SetItemChecked(i, allFiles.Checked);
+                    // Группируем файлы по папкам
+                    var filesByFolder = _contextFiles[ex]
+                        .GroupBy(f => Path.GetDirectoryName(f))
+                        .OrderBy(g => g.Key);
+
+                    foreach (var folderGroup in filesByFolder)
+                    {
+                        var folderName = folderGroup.Key;
+                        var folderNode = new TreeNode(folderName ?? "Root");
+                        folderNode.Tag = folderName;
+
+                        foreach (string file in folderGroup.OrderBy(f => f))
+                        {
+                            var fileNode = new TreeNode(Path.GetFileName(file));
+                            fileNode.Tag = file; // Полный путь к файлу
+                            folderNode.Nodes.Add(fileNode);
+                        }
+
+                        extensionNode.Nodes.Add(folderNode);
+                    }
+
+                    filesTreeView.Nodes.Add(extensionNode);
+                }
+            }
+
+            _updatingTree = false;
+        }
+
+        private void filesTreeView_AfterCheck(object sender, TreeViewEventArgs e)
+        {
+            if (_updatingTree) return;
+
+            _updatingTree = true;
+
+            // Обновляем дочерние узлы
+            CheckAllChildNodes(e.Node, e.Node.Checked);
+
+            // Обновляем родительские узлы
+            UpdateParentNodes(e.Node);
+
+            _updatingTree = false;
+
+            // Обновляем контент
+            UpdateContent();
+        }
+
+        private void CheckAllChildNodes(TreeNode treeNode, bool nodeChecked)
+        {
+            foreach (TreeNode node in treeNode.Nodes)
+            {
+                node.Checked = nodeChecked;
+                if (node.Nodes.Count > 0)
+                {
+                    CheckAllChildNodes(node, nodeChecked);
+                }
             }
         }
 
-        private void files_ItemCheck(object sender, ItemCheckEventArgs e)
+        private void UpdateParentNodes(TreeNode treeNode)
         {
-            BeginInvoke(new Action(() =>
+            if (treeNode.Parent != null)
             {
-                content.Text = "";
-                var errorList = new List<string>();
-                var builder = new StringBuilder();
+                bool allChecked = true;
+                bool anyChecked = false;
 
-                foreach (string file in files.CheckedItems)
+                foreach (TreeNode node in treeNode.Parent.Nodes)
                 {
-                    var fileContent = GetFileContent(file);
+                    if (node.Checked)
+                        anyChecked = true;
+                    else
+                        allChecked = false;
+                }
 
-                    if (builder.Length + fileContent.Length > builder.MaxCapacity)
-                    {
-                        MessageBox.Show($"Место закончилось");
-                        return;
-                    }
+                if (allChecked)
+                    treeNode.Parent.Checked = true;
+                else if (!anyChecked)
+                    treeNode.Parent.Checked = false;
+                else
+                    treeNode.Parent.Checked = true; // Промежуточное состояние
 
-                    if (fileContent is null)
-                    {
-                        errorList.Add(file);
-                    }
+                UpdateParentNodes(treeNode.Parent);
+            }
+        }
 
-                    if (fileContent.Length > 0)
+        private void allFiles_CheckedChanged(object sender, EventArgs e)
+        {
+            _updatingTree = true;
+
+            foreach (TreeNode node in filesTreeView.Nodes)
+            {
+                node.Checked = allFiles.Checked;
+                CheckAllChildNodes(node, allFiles.Checked);
+            }
+
+            _updatingTree = false;
+            UpdateContent();
+        }
+
+        private void UpdateContent()
+        {
+            content.Text = "";
+            var errorList = new List<string>();
+            var builder = new StringBuilder();
+            var selectedFiles = GetCheckedFiles();
+
+            foreach (string file in selectedFiles)
+            {
+                var fileContent = GetFileContent(file);
+
+                if (builder.Length + fileContent.Length > builder.MaxCapacity)
+                {
+                    MessageBox.Show("Достигнут максимальный размер контента");
+                    return;
+                }
+
+                if (fileContent is null)
+                {
+                    errorList.Add(file);
+                    continue;
+                }
+
+                if (fileContent.Length > 0)
+                {
+                    builder.AppendLine($"// ========================================");
+                    builder.AppendLine($"// FILE: {file}");
+                    builder.AppendLine($"// ========================================");
+                    builder.AppendLine(fileContent);
+                    builder.AppendLine($"\n// Конец файла: {file}\n");
+                }
+            }
+
+            if (errorList.Count > 0)
+            {
+                MessageBox.Show($"Не удалось прочитать следующие файлы:\n{string.Join("\n", errorList)}");
+            }
+
+            if (builder.Length > content.MaxLength)
+            {
+                if (MessageBox.Show("Контент превышает максимальный размер, сохранить в файл?",
+                    "Предупреждение",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question) == DialogResult.Yes)
+                {
+                    SaveDataToFile(builder.ToString());
+                    return;
+                }
+            }
+            content.Text = builder.ToString();
+        }
+
+        private List<string> GetCheckedFiles()
+        {
+            var checkedFiles = new List<string>();
+            GetCheckedFilesRecursive(filesTreeView.Nodes, checkedFiles);
+            return checkedFiles;
+        }
+
+        private void GetCheckedFilesRecursive(TreeNodeCollection nodes, List<string> checkedFiles)
+        {
+            foreach (TreeNode node in nodes)
+            {
+                if (node.Checked && node.Tag != null)
+                {
+                    // Если это файл (нет дочерних узлов)
+                    if (node.Nodes.Count == 0 && File.Exists(node.Tag.ToString()))
                     {
-                        builder.AppendLine($"// ========================================");
-                        builder.AppendLine($"// FILE: {file}");
-                        builder.AppendLine($"// ========================================");
-                        builder.AppendLine(fileContent);
-                        builder.AppendLine($"\n//Конец файла: {file}\n");
+                        checkedFiles.Add(node.Tag.ToString());
                     }
                 }
 
-                if (errorList.Count > 0)
+                if (node.Nodes.Count > 0)
                 {
-                    MessageBox.Show($"Не удалось получить содержимое следующих файлов:\n{string.Join("\n", errorList)}");
+                    GetCheckedFilesRecursive(node.Nodes, checkedFiles);
                 }
-
-                if (builder.Length > content.MaxLength)
-                {
-                    if (MessageBox.Show("Данных слишком много, сохранить их сразу в фаил?",
-                        "",
-                        MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Question) == DialogResult.Yes)
-                    {
-                        SaveDataToFile(builder.ToString());
-                        return;
-                    }
-                }
-                content.Text = builder.ToString();
-            }));
+            }
         }
 
         private void FillExtensions(string folder)
@@ -195,23 +306,22 @@ namespace FileFusion
             try
             {
                 var allFiles = Directory.GetFiles(folder, "*.*", SearchOption.AllDirectories).ToList();
-
                 _contextFiles = GroupFilesByExtension(allFiles);
 
                 extensions.Items.Clear();
-
                 foreach (var ex in _contextFiles.Keys)
                 {
                     extensions.Items.Add(ex);
                 }
 
-                files.Items.Clear();
-
+                filesTreeView.Nodes.Clear();
+                _extensionNodes.Clear();
                 content.Text = "";
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Возникла ошибка: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Ошибка при сканировании: {ex.Message}", "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -250,8 +360,8 @@ namespace FileFusion
         {
             if (string.IsNullOrEmpty(saveText))
             {
-                MessageBox.Show($"Нет данных для сохранения", "Ошибка",
-                                      MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Нет данных для сохранения", "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
@@ -268,13 +378,13 @@ namespace FileFusion
                     try
                     {
                         File.WriteAllText(saveFileDialog.FileName, saveText, Encoding.UTF8);
-                        MessageBox.Show("Файл успешно сохранен!", "",
-                                      MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        MessageBox.Show("Файл успешно сохранен!", "Успех",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {
                         MessageBox.Show($"Ошибка при сохранении: {ex.Message}", "Ошибка",
-                                      MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
             }
