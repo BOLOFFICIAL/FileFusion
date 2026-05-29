@@ -1,11 +1,10 @@
-using System.Text;
+п»їusing System.Text;
 
 namespace FileFusion
 {
     public partial class MainForm : Form
     {
         private Dictionary<string, List<string>> _contextFiles;
-        private Dictionary<string, TreeNode> _extensionNodes = new Dictionary<string, TreeNode>();
         private bool _updatingTree = false;
 
         public MainForm()
@@ -22,9 +21,6 @@ namespace FileFusion
             content.BackColor = Color.FromArgb(37, 37, 38);
             content.ForeColor = Color.White;
             content.Font = new Font("Consolas", 10);
-
-            extensions.BackColor = Color.FromArgb(45, 45, 48);
-            extensions.ForeColor = Color.White;
 
             filesTreeView.BackColor = Color.FromArgb(45, 45, 48);
             filesTreeView.ForeColor = Color.White;
@@ -61,14 +57,79 @@ namespace FileFusion
         {
             using (var folderDialog = new FolderBrowserDialog())
             {
-                folderDialog.Description = "Выберите папку с файлами";
+                folderDialog.Description = "Р’С‹Р±РµСЂРёС‚Рµ РїР°РїРєСѓ СЃ С„Р°Р№Р»Р°РјРё";
                 folderDialog.ShowNewFolderButton = true;
                 folderDialog.RootFolder = Environment.SpecialFolder.MyComputer;
 
                 if (folderDialog.ShowDialog() == DialogResult.OK)
                 {
-                    FillExtensions(folderDialog.SelectedPath);
+                    var folder = folderDialog.SelectedPath;
+                    BuildFileTree(folder);
+                    this.Text = $"FileFusion - {folder}";
                 }
+            }
+        }
+
+        private void BuildFileTree(string rootPath)
+        {
+            try
+            {
+                _updatingTree = true;
+                filesTreeView.Nodes.Clear();
+                content.Text = "";
+                var rootNode = new TreeNode(Path.GetFileName(rootPath));
+                rootNode.Tag = rootPath;
+
+                AddDirectoryNodes(rootNode, rootPath);
+
+                filesTreeView.Nodes.Add(rootNode);
+                rootNode.Expand(); 
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"РћС€РёР±РєР° РїСЂРё РїРѕСЃС‚СЂРѕРµРЅРёРё РґРµСЂРµРІР°: {ex.Message}", "РћС€РёР±РєР°",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                _updatingTree = false;
+            }
+        }
+
+        private void AddDirectoryNodes(TreeNode parentNode, string path)
+        {
+            try
+            {
+                var directories = Directory.GetDirectories(path);
+                foreach (var dir in directories)
+                {
+                    var dirName = Path.GetFileName(dir);
+                    var dirNode = new TreeNode(dirName);
+                    dirNode.Tag = dir;
+
+                    AddDirectoryNodes(dirNode, dir);
+
+                    parentNode.Nodes.Add(dirNode);
+                }
+
+                var files = Directory.GetFiles(path);
+                foreach (var file in files)
+                {
+                    var fileName = Path.GetFileName(file);
+                    var fileNode = new TreeNode(fileName);
+                    fileNode.Tag = file;
+                    parentNode.Nodes.Add(fileNode);
+                }
+            }
+            catch (UnauthorizedAccessException)
+            {
+                var noAccessNode = new TreeNode("[РќРµС‚ РґРѕСЃС‚СѓРїР°]");
+                parentNode.Nodes.Add(noAccessNode);
+            }
+            catch (Exception ex)
+            {
+                var errorNode = new TreeNode($"[РћС€РёР±РєР°: {ex.Message}]");
+                parentNode.Nodes.Add(errorNode);
             }
         }
 
@@ -77,96 +138,15 @@ namespace FileFusion
             SaveDataToFile(content.Text);
         }
 
-        private void allExtensions_CheckedChanged(object sender, EventArgs e)
-        {
-            content.Text = "";
-            extensions.ItemCheck -= extensions_ItemCheck;
-
-            var isCheck = allExtensions.Checked;
-
-            if (!isCheck)
-            {
-                allFiles.Checked = isCheck;
-            }
-
-            for (int i = 0; i < extensions.Items.Count; i++)
-            {
-                if (i == extensions.Items.Count - 1)
-                {
-                    extensions.ItemCheck += extensions_ItemCheck;
-                }
-
-                extensions.SetItemChecked(i, isCheck);
-            }
-        }
-
-        private void extensions_ItemCheck(object sender, ItemCheckEventArgs e)
-        {
-            this.BeginInvoke(new Action(() =>
-            {
-                UpdateTreeView();
-                allFiles.Checked = false;
-                content.Text = "";
-            }));
-        }
-
-        private void UpdateTreeView()
-        {
-            _updatingTree = true;
-            filesTreeView.Nodes.Clear();
-            _extensionNodes.Clear();
-
-            foreach (string ex in extensions.CheckedItems)
-            {
-                if (_contextFiles.ContainsKey(ex))
-                {
-                    var extensionNode = new TreeNode(ex.TrimStart('.'));
-                    extensionNode.Tag = ex;
-                    _extensionNodes[ex] = extensionNode;
-
-                    // Группируем файлы по папкам
-                    var filesByFolder = _contextFiles[ex]
-                        .GroupBy(f => Path.GetDirectoryName(f))
-                        .OrderBy(g => g.Key);
-
-                    foreach (var folderGroup in filesByFolder)
-                    {
-                        var folderName = folderGroup.Key;
-                        var folderNode = new TreeNode(folderName ?? "Root");
-                        folderNode.Tag = folderName;
-
-                        foreach (string file in folderGroup.OrderBy(f => f))
-                        {
-                            var fileNode = new TreeNode(Path.GetFileName(file));
-                            fileNode.Tag = file; // Полный путь к файлу
-                            folderNode.Nodes.Add(fileNode);
-                        }
-
-                        extensionNode.Nodes.Add(folderNode);
-                    }
-
-                    filesTreeView.Nodes.Add(extensionNode);
-                }
-            }
-
-            _updatingTree = false;
-        }
-
         private void filesTreeView_AfterCheck(object sender, TreeViewEventArgs e)
         {
             if (_updatingTree) return;
 
             _updatingTree = true;
-
-            // Обновляем дочерние узлы
             CheckAllChildNodes(e.Node, e.Node.Checked);
-
-            // Обновляем родительские узлы
             UpdateParentNodes(e.Node);
 
             _updatingTree = false;
-
-            // Обновляем контент
             UpdateContent();
         }
 
@@ -202,7 +182,7 @@ namespace FileFusion
                 else if (!anyChecked)
                     treeNode.Parent.Checked = false;
                 else
-                    treeNode.Parent.Checked = true; // Промежуточное состояние
+                    treeNode.Parent.Checked = true;
 
                 UpdateParentNodes(treeNode.Parent);
             }
@@ -210,6 +190,8 @@ namespace FileFusion
 
         private void allFiles_CheckedChanged(object sender, EventArgs e)
         {
+            if (_updatingTree) return;
+
             _updatingTree = true;
 
             foreach (TreeNode node in filesTreeView.Nodes)
@@ -233,16 +215,16 @@ namespace FileFusion
             {
                 var fileContent = GetFileContent(file);
 
-                if (builder.Length + fileContent.Length > builder.MaxCapacity)
-                {
-                    MessageBox.Show("Достигнут максимальный размер контента");
-                    return;
-                }
-
                 if (fileContent is null)
                 {
                     errorList.Add(file);
                     continue;
+                }
+
+                if (builder.Length + fileContent.Length > builder.MaxCapacity)
+                {
+                    MessageBox.Show("Р”РѕСЃС‚РёРіРЅСѓС‚ РјР°РєСЃРёРјР°Р»СЊРЅС‹Р№ СЂР°Р·РјРµСЂ СЃРѕРґРµСЂР¶РёРјРѕРіРѕ");
+                    return;
                 }
 
                 if (fileContent.Length > 0)
@@ -250,20 +232,21 @@ namespace FileFusion
                     builder.AppendLine($"// ========================================");
                     builder.AppendLine($"// FILE: {file}");
                     builder.AppendLine($"// ========================================");
+                    builder.AppendLine();
                     builder.AppendLine(fileContent);
-                    builder.AppendLine($"\n// Конец файла: {file}\n");
+                    builder.AppendLine($"\n// РљРѕРЅРµС† С„Р°Р№Р»Р°: {file}\n");
                 }
             }
 
             if (errorList.Count > 0)
             {
-                MessageBox.Show($"Не удалось прочитать следующие файлы:\n{string.Join("\n", errorList)}");
+                MessageBox.Show($"РќРµ СѓРґР°Р»РѕСЃСЊ РїСЂРѕС‡РёС‚Р°С‚СЊ С„Р°Р№Р»С‹:\n{string.Join("\n", errorList)}");
             }
 
             if (builder.Length > content.MaxLength)
             {
-                if (MessageBox.Show("Контент превышает максимальный размер, сохранить в файл?",
-                    "Предупреждение",
+                if (MessageBox.Show("РЎРѕРґРµСЂР¶РёРјРѕРµ СЃР»РёС€РєРѕРј Р±РѕР»СЊС€РѕРµ, СЃРѕС…СЂР°РЅРёС‚СЊ РІ С„Р°Р№Р»?",
+                    "РџСЂРµРґСѓРїСЂРµР¶РґРµРЅРёРµ",
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Question) == DialogResult.Yes)
                 {
@@ -287,7 +270,6 @@ namespace FileFusion
             {
                 if (node.Checked && node.Tag != null)
                 {
-                    // Если это файл (нет дочерних узлов)
                     if (node.Nodes.Count == 0 && File.Exists(node.Tag.ToString()))
                     {
                         checkedFiles.Add(node.Tag.ToString());
@@ -299,41 +281,6 @@ namespace FileFusion
                     GetCheckedFilesRecursive(node.Nodes, checkedFiles);
                 }
             }
-        }
-
-        private void FillExtensions(string folder)
-        {
-            try
-            {
-                var allFiles = Directory.GetFiles(folder, "*.*", SearchOption.AllDirectories).ToList();
-                _contextFiles = GroupFilesByExtension(allFiles);
-
-                extensions.Items.Clear();
-                foreach (var ex in _contextFiles.Keys)
-                {
-                    extensions.Items.Add(ex);
-                }
-
-                filesTreeView.Nodes.Clear();
-                _extensionNodes.Clear();
-                content.Text = "";
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка при сканировании: {ex.Message}", "Ошибка",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        public Dictionary<string, List<string>> GroupFilesByExtension(List<string> filePaths)
-        {
-            return filePaths
-                .GroupBy(file => Path.GetExtension(file).ToLower())
-                .OrderBy(ex => ex.Key)
-                .ToDictionary(
-                    group => group.Key,
-                    group => group.ToList()
-                );
         }
 
         private string? GetFileContent(string filePath)
@@ -360,15 +307,15 @@ namespace FileFusion
         {
             if (string.IsNullOrEmpty(saveText))
             {
-                MessageBox.Show("Нет данных для сохранения", "Ошибка",
+                MessageBox.Show("РќРµС‚ РґР°РЅРЅС‹С… РґР»СЏ СЃРѕС…СЂР°РЅРµРЅРёСЏ", "РћС€РёР±РєР°",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
             using (SaveFileDialog saveFileDialog = new SaveFileDialog())
             {
-                saveFileDialog.Filter = "Текстовые файлы (*.txt)|*.txt|Все файлы (*.*)|*.*";
-                saveFileDialog.Title = "Сохранить файл";
+                saveFileDialog.Filter = "РўРµРєСЃС‚РѕРІС‹Рµ С„Р°Р№Р»С‹ (*.txt)|*.txt|Р’СЃРµ С„Р°Р№Р»С‹ (*.*)|*.*";
+                saveFileDialog.Title = "РЎРѕС…СЂР°РЅРёС‚СЊ СЃРѕРґРµСЂР¶РёРјРѕРµ";
                 saveFileDialog.DefaultExt = "txt";
                 saveFileDialog.FileName = $"FileFusion_{DateTime.Now:yyyyMMddHHmmss}";
                 saveFileDialog.AddExtension = true;
@@ -378,12 +325,12 @@ namespace FileFusion
                     try
                     {
                         File.WriteAllText(saveFileDialog.FileName, saveText, Encoding.UTF8);
-                        MessageBox.Show("Файл успешно сохранен!", "Успех",
+                        MessageBox.Show("Р¤Р°Р№Р» СѓСЃРїРµС€РЅРѕ СЃРѕС…СЂР°РЅРµРЅ!", "РЈСЃРїРµС…",
                             MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show($"Ошибка при сохранении: {ex.Message}", "Ошибка",
+                        MessageBox.Show($"РћС€РёР±РєР° РїСЂРё СЃРѕС…СЂР°РЅРµРЅРёРё: {ex.Message}", "РћС€РёР±РєР°",
                             MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
