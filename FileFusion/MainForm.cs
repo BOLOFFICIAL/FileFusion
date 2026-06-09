@@ -4,54 +4,16 @@ namespace FileFusion
 {
     public partial class MainForm : Form
     {
-        private Dictionary<string, List<string>> _contextFiles;
         private bool _updatingTree = false;
+        private CancellationTokenSource _cancellationTokenSource;
+        private string _currentFolder;
 
         public MainForm()
         {
             InitializeComponent();
-            ConfigureUi();
         }
 
-        private void ConfigureUi()
-        {
-            BackColor = Color.FromArgb(30, 30, 30);
-            ForeColor = Color.White;
-
-            content.BackColor = Color.FromArgb(37, 37, 38);
-            content.ForeColor = Color.White;
-            content.Font = new Font("Consolas", 10);
-
-            filesTreeView.BackColor = Color.FromArgb(45, 45, 48);
-            filesTreeView.ForeColor = Color.White;
-
-            foreach (Control control in Controls)
-            {
-                ApplyDarkTheme(control);
-            }
-        }
-
-        private void ApplyDarkTheme(Control parent)
-        {
-            foreach (Control control in parent.Controls)
-            {
-                if (control is Button button)
-                {
-                    button.BackColor = Color.FromArgb(0, 122, 204);
-                    button.ForeColor = Color.White;
-                    button.FlatStyle = FlatStyle.Flat;
-                    button.FlatAppearance.BorderSize = 0;
-                    button.Cursor = Cursors.Hand;
-                }
-
-                if (control is GroupBox groupBox)
-                {
-                    groupBox.ForeColor = Color.White;
-                }
-
-                ApplyDarkTheme(control);
-            }
-        }
+        #region File Tree Building
 
         private void selectFolder_Click(object sender, EventArgs e)
         {
@@ -63,9 +25,9 @@ namespace FileFusion
 
                 if (folderDialog.ShowDialog() == DialogResult.OK)
                 {
-                    var folder = folderDialog.SelectedPath;
-                    BuildFileTree(folder);
-                    this.Text = $"FileFusion - {folder}";
+                    _currentFolder = folderDialog.SelectedPath;
+                    BuildFileTree(_currentFolder);
+                    this.Text = $"📁 FileFusion — {_currentFolder}";
                 }
             }
         }
@@ -83,7 +45,7 @@ namespace FileFusion
                 AddDirectoryNodes(rootNode, rootPath);
 
                 filesTreeView.Nodes.Add(rootNode);
-                rootNode.Expand(); 
+                rootNode.Expand();
             }
             catch (Exception ex)
             {
@@ -133,10 +95,9 @@ namespace FileFusion
             }
         }
 
-        private void saveToFile_Click(object sender, EventArgs e)
-        {
-            SaveDataToFile(content.Text);
-        }
+        #endregion
+
+        #region Tree Checkbox Logic
 
         private void filesTreeView_AfterCheck(object sender, TreeViewEventArgs e)
         {
@@ -145,8 +106,8 @@ namespace FileFusion
             _updatingTree = true;
             CheckAllChildNodes(e.Node, e.Node.Checked);
             UpdateParentNodes(e.Node);
-
             _updatingTree = false;
+
             UpdateContent();
         }
 
@@ -204,58 +165,11 @@ namespace FileFusion
             UpdateContent();
         }
 
-        private void UpdateContent()
-        {
-            content.Text = "";
-            var errorList = new List<string>();
-            var builder = new StringBuilder();
-            var selectedFiles = GetCheckedFiles();
+        private void Button_MouseEnter(object sender, EventArgs e) =>
+            ((Button)sender).BackColor = Color.FromArgb(16, 110, 190);
 
-            foreach (string file in selectedFiles)
-            {
-                var fileContent = GetFileContent(file);
-
-                if (fileContent is null)
-                {
-                    errorList.Add(file);
-                    continue;
-                }
-
-                if (builder.Length + fileContent.Length > builder.MaxCapacity)
-                {
-                    MessageBox.Show("Достигнут максимальный размер содержимого");
-                    return;
-                }
-
-                if (fileContent.Length > 0)
-                {
-                    builder.AppendLine($"// ========================================");
-                    builder.AppendLine($"// FILE: {file}");
-                    builder.AppendLine($"// ========================================");
-                    builder.AppendLine();
-                    builder.AppendLine(fileContent);
-                    builder.AppendLine($"\n// Конец файла: {file}\n");
-                }
-            }
-
-            if (errorList.Count > 0)
-            {
-                MessageBox.Show($"Не удалось прочитать файлы:\n{string.Join("\n", errorList)}");
-            }
-
-            if (builder.Length > content.MaxLength)
-            {
-                if (MessageBox.Show("Содержимое слишком большое, сохранить в файл?",
-                    "Предупреждение",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Question) == DialogResult.Yes)
-                {
-                    SaveDataToFile(builder.ToString());
-                    return;
-                }
-            }
-            content.Text = builder.ToString();
-        }
+        private void Button_MouseLeave(object sender, EventArgs e) =>
+            ((Button)sender).BackColor = Color.FromArgb(0, 120, 215);
 
         private List<string> GetCheckedFiles()
         {
@@ -283,24 +197,178 @@ namespace FileFusion
             }
         }
 
+        #endregion
+
+        #region Content Processing
+
+        private async void UpdateContent()
+        {
+            _cancellationTokenSource?.Cancel();
+            _cancellationTokenSource = new CancellationTokenSource();
+            var token = _cancellationTokenSource.Token;
+
+            selectFolder.Enabled = false;
+            selectFolder.Visible = false;
+            saveToFile.Enabled = false;
+            saveToFile.Visible = false;
+            allFiles.Enabled = false;
+            allFiles.Visible = false;
+            filesTreeView.Enabled = false;
+
+            progressBar.Visible = true;
+            progressBar.Value = 0;
+
+            content.Text = "";
+
+            var selectedFiles = GetCheckedFiles();
+
+            try
+            {
+                var progress = new Progress<(int current, int total, string fileName)>(
+                    update =>
+                    {
+                        if (!token.IsCancellationRequested)
+                        {
+                            int percent = (update.current * 100) / update.total;
+                            progressBar.Value = Math.Min(percent, 100);
+                            this.Text = $"📄 FileFusion — {update.current}/{update.total} — {Path.GetFileName(update.fileName)}";
+                        }
+                    });
+
+                var contentProgress = new Progress<string>(
+                    contentChunk =>
+                    {
+                        if (!token.IsCancellationRequested)
+                        {
+                            content.AppendText(contentChunk);
+                            content.SelectionStart = content.Text.Length;
+                            content.ScrollToCaret();
+                        }
+                    });
+
+                var result = await Task.Run(() => ProcessFilesAsync(selectedFiles, progress, contentProgress, token), token);
+
+                if (result.Cancelled)
+                {
+                    MessageBox.Show("Операция была отменена пользователем.", "Отмена",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else if (result.Errors.Count > 0)
+                {
+                    MessageBox.Show($"Не удалось прочитать файлы:\n{string.Join("\n", result.Errors)}",
+                        "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+
+                if (result.MaxCapacityExceeded)
+                {
+                    MessageBox.Show("Достигнут максимальный размер содержимого. Операция прервана.",
+                        "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                MessageBox.Show("Операция была отменена.", "Отмена",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при обработке файлов: {ex.Message}", "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                FinishUpdate();
+            }
+        }
+
+        private async Task<(List<string> Errors, bool MaxCapacityExceeded, bool Cancelled)> ProcessFilesAsync(
+            List<string> files,
+            IProgress<(int current, int total, string fileName)> progress,
+            IProgress<string> contentProgress,
+            CancellationToken token)
+        {
+            var errorList = new List<string>();
+            bool maxCapacityExceeded = false;
+            bool cancelled = false;
+            int processed = 0;
+            int total = files.Count;
+
+            foreach (string file in files)
+            {
+                if (token.IsCancellationRequested)
+                {
+                    cancelled = true;
+                    break;
+                }
+
+                progress.Report((processed + 1, total, file));
+
+                var fileContent = GetFileContent(file);
+
+                if (fileContent is null)
+                {
+                    errorList.Add(file);
+                    processed++;
+                    continue;
+                }
+
+                if (fileContent.Length > 0)
+                {
+                    var builder = new StringBuilder();
+
+                    builder.AppendLine($"// ========================================");
+                    builder.AppendLine($"// FILE: {file}");
+                    builder.AppendLine($"// ========================================");
+                    builder.AppendLine();
+                    builder.AppendLine(fileContent);
+                    builder.AppendLine($"\n// Конец файла: {file}\n");
+
+                    contentProgress.Report(builder.ToString());
+                }
+
+                processed++;
+            }
+
+            return (errorList, maxCapacityExceeded, cancelled);
+        }
+
         private string? GetFileContent(string filePath)
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(filePath))
+                if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
                     return null;
-
-                if (!File.Exists(filePath))
-                {
-                    return null;
-                }
 
                 return File.ReadAllText(filePath);
             }
-            catch (Exception ex)
+            catch
             {
                 return null;
             }
+        }
+
+        private void FinishUpdate()
+        {
+            selectFolder.Enabled = true;
+            selectFolder.Visible = true;
+            saveToFile.Enabled = true;
+            saveToFile.Visible = true;
+            allFiles.Enabled = true;
+            allFiles.Visible = true;
+            filesTreeView.Enabled = true;
+
+            progressBar.Visible = false;
+
+            this.Text = "📄 FileFusion — Объединение файлов";
+        }
+
+        #endregion
+
+        #region Save to File
+
+        private void saveToFile_Click(object sender, EventArgs e)
+        {
+            SaveDataToFile(content.Text);
         }
 
         private void SaveDataToFile(string saveText)
@@ -317,7 +385,7 @@ namespace FileFusion
                 saveFileDialog.Filter = "Текстовые файлы (*.txt)|*.txt|Все файлы (*.*)|*.*";
                 saveFileDialog.Title = "Сохранить содержимое";
                 saveFileDialog.DefaultExt = "txt";
-                saveFileDialog.FileName = $"FileFusion_{DateTime.Now:yyyyMMddHHmmss}";
+                saveFileDialog.FileName = $"FileFusion_{Path.GetFileName(_currentFolder)}";
                 saveFileDialog.AddExtension = true;
 
                 if (saveFileDialog.ShowDialog() == DialogResult.OK)
@@ -336,5 +404,7 @@ namespace FileFusion
                 }
             }
         }
+
+        #endregion
     }
 }
